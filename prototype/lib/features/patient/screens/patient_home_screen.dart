@@ -97,7 +97,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
           'Are you in emergency ?',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.red.shade600,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         actions: [
           IconButton(

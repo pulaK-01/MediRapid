@@ -3,7 +3,7 @@ import 'package:medirapid/core/routes/app_routes.dart';
 import 'package:medirapid/core/theme/app_theme.dart';
 import 'package:medirapid/features/auth/providers/driver_verification_provider.dart';
 
-const bool bypassDriverVerification = true;
+const bool bypassDriverVerification = false;
 
 class MediRapid extends StatelessWidget {
   const MediRapid({

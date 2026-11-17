@@ -1,4 +1,4 @@
-import 'package:medirapid/features/patient/models/user_model.dart';
+import 'package:medirapid/models/user_model.dart';
 
 class UserRepository {
   Future<List<UserModel>> getUsers() async {

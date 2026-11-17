@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:medirapid/features/patient/models/user_model.dart';
+import 'package:medirapid/models/user_model.dart';
 import 'package:medirapid/shared/widgets/custom_button2.dart';
 import 'package:medirapid/shared/widgets/custom_button1.dart';
 import 'package:medirapid/features/auth/screens/phone_authentication.dart';
@@ -67,7 +67,7 @@ class RoleSelectionScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 24),
                         CustomButton1(
-                          label: 'I need Emergency Help',
+                          label: 'Register as a Patient',
                           icon: Icons.medical_services,
                           onPressed: () {
                             Navigator.push(
@@ -82,7 +82,7 @@ class RoleSelectionScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         CustomButton2(
-                          label: "I'm an Ambulance Driver",
+                          label: "Register as a Driver",
                           icon: Icons.airport_shuttle_rounded,
                           onPressed: () {
                             Navigator.push(

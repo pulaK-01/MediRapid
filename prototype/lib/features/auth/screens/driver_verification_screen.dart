@@ -83,6 +83,8 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
     }
 
     await DriverVerificationProvider.instance.submitForReview();
+
+    if (!mounted) return;
     setState(() => _isSubmitting = true);
     await showDialog<void>(
       context: context,
@@ -130,9 +132,7 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
       return 'Use only letters, numbers, spaces, or hyphens.';
     }
 
-    final compactLength = normalized
-        .replaceAll(RegExp(r'[\s-]'), '')
-        .length;
+    final compactLength = normalized.replaceAll(RegExp(r'[\s-]'), '').length;
     if (compactLength < 8 || compactLength > 20) {
       return 'Licence number must contain 8–20 letters or numbers.';
     }
@@ -140,10 +140,7 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
   }
 
   String? _validateVehicleRegistrationNumber(String? value) {
-    final requiredError = _requiredField(
-      value,
-      'vehicle registration number',
-    );
+    final requiredError = _requiredField(value, 'vehicle registration number');
     if (requiredError != null) return requiredError;
 
     final normalized = value!.trim().toUpperCase();

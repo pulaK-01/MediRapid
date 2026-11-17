@@ -27,6 +27,6 @@ void main() {
       find.textContaining('Your documents have been submitted successfully'),
       findsOneWidget,
     );
-    expect(find.text('Done'), findsOneWidget);
+    expect(find.text('Go to Profile'), findsOneWidget);
   });
 }

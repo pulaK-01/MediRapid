@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:medirapid/core/routes/app_routes.dart';
+import 'package:medirapid/features/auth/screens/phone_authentication.dart';
+import 'package:medirapid/models/user_model.dart';
 import 'package:medirapid/features/driver/providers/driver_provider.dart';
 import 'package:medirapid/features/driver/widgets/driver_page_scaffold.dart';
 import 'package:medirapid/shared/models/settings_item.dart';
@@ -12,7 +14,7 @@ class DriverSettingsScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Logging out?'),
-        content: const Text('You will return to role selection.'),
+        content: const Text('You will be returned to the login screen.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -28,9 +30,14 @@ class DriverSettingsScreen extends StatelessWidget {
 
     if (shouldLogOut == true && context.mounted) {
       DriverProvider.instance.resetSession();
-      Navigator.pushNamedAndRemoveUntil(
+      Navigator.pushAndRemoveUntil(
         context,
-        AppRoutes.roleSelection,
+        MaterialPageRoute<void>(
+          builder: (_) => const PhoneAuthenticationScreen(
+            role: UserRole.driver,
+            initialMode: AuthenticationMode.login,
+          ),
+        ),
         (route) => false,
       );
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:medirapid/core/routes/app_routes.dart';
+import 'package:medirapid/features/auth/screens/phone_authentication.dart';
+import 'package:medirapid/models/user_model.dart';
 import 'package:medirapid/shared/models/settings_item.dart';
 
 class PatientSettingsScreen extends StatelessWidget {
@@ -10,7 +11,7 @@ class PatientSettingsScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Log out?'),
-        content: const Text('You will return to role selection.'),
+        content: const Text('You will be returned to the login screen.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -25,9 +26,14 @@ class PatientSettingsScreen extends StatelessWidget {
     );
 
     if (shouldLogOut == true && context.mounted) {
-      Navigator.pushNamedAndRemoveUntil(
+      Navigator.pushAndRemoveUntil(
         context,
-        AppRoutes.roleSelection,
+        MaterialPageRoute<void>(
+          builder: (_) => const PhoneAuthenticationScreen(
+            role: UserRole.patient,
+            initialMode: AuthenticationMode.login,
+          ),
+        ),
         (route) => false,
       );
     }
@@ -66,7 +72,7 @@ class PatientSettingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
-        backgroundColor: Colors.red.shade600,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
       body: Column(
