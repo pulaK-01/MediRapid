@@ -1,7 +1,9 @@
 class AppRoutes {
+  static const String splash = '/splash';
   static const String roleSelection = '/';
   static const String patientHome = '/patient-home';
   static const String patientSettings = '/patient-settings';
+  static const String patientHistory = '/patient-history';
   static const String driverVerification = '/driver-verification';
   static const String driverVerificationPending =
       '/driver-verification-pending';
@@ -12,16 +14,4 @@ class AppRoutes {
 
   static const String driverSettings = '/driver-settings';
   static const String driverProfile = '/driver-profile';
-
-  static bool _driverVerificationApproved = false;
-
-  static bool get driverVerificationApproved => _driverVerificationApproved;
-
-  static void markDriverVerificationPending() {
-    _driverVerificationApproved = false;
-  }
-
-  static void approveDriverVerification() {
-    _driverVerificationApproved = true;
-  }
 }

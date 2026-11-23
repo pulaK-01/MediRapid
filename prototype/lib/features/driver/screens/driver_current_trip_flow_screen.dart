@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:medirapid/core/routes/app_routes.dart';
 import 'package:medirapid/features/driver/models/trip_flow_model.dart';
 import 'package:medirapid/features/driver/models/trip_model.dart';
 import 'package:medirapid/features/driver/providers/driver_provider.dart';
+import 'package:medirapid/features/driver/widgets/driver_page_scaffold.dart';
 
 const _navy = Color(0xFF07152F);
 const _panel = Color(0xFF122441);
@@ -52,6 +54,7 @@ class _DriverCurrentTripFlowScreenState
         child: AnimatedBuilder(
           animation: _driver,
           builder: (context, child) {
+            surfaceDriverError(context, _driver);
             final trip = _driver.activeTrip;
             final stage = _driver.tripStage;
             final hasActiveTrip = trip != null && stage != null;
@@ -85,9 +88,10 @@ class _DriverCurrentTripFlowScreenState
                                       _NavigationView(
                                         trip: trip,
                                         destination: trip.pickup,
-                                        instruction: 'Turn left in 300 m',
-                                        remainingDistance:
-                                            '${trip.distanceKm} km',
+                                        instruction:
+                                            'Head to the pickup location',
+                                        toPickup: true,
+                                        remainingDistance: trip.distanceLabel,
                                       ),
                                     TripStage.arrived => _ArrivalView(
                                       trip: trip,
@@ -101,8 +105,8 @@ class _DriverCurrentTripFlowScreenState
                                         trip: trip,
                                         destination: trip.destination,
                                         instruction: 'Continue to the hospital',
-                                        remainingDistance:
-                                            '${trip.distanceKm} km',
+                                        toPickup: false,
+                                        remainingDistance: trip.distanceLabel,
                                       ),
                                     TripStage.completed => _CompletedView(
                                       trip: trip,
@@ -140,7 +144,7 @@ class _DriverCurrentTripFlowScreenState
           label: 'I have arrived',
           icon: Icons.check,
           color: _green,
-          onPressed: _driver.markArrived,
+          onPressed: _driver.isBusy ? null : _driver.markArrived,
         );
       case TripStage.arrived:
         return _BottomAction(
@@ -154,7 +158,7 @@ class _DriverCurrentTripFlowScreenState
           label: 'Navigate to Destination',
           icon: Icons.navigation,
           color: _blue,
-          onPressed: _driver.isChecklistComplete
+          onPressed: (_driver.isChecklistComplete && !_driver.isBusy)
               ? _driver.navigateToDestination
               : null,
         );
@@ -163,7 +167,7 @@ class _DriverCurrentTripFlowScreenState
           label: 'Arrived at Hospital · Complete Trip',
           icon: Icons.check_circle_outline,
           color: _blue,
-          onPressed: _driver.completeTrip,
+          onPressed: _driver.isBusy ? null : _driver.completeTrip,
         );
       case TripStage.completed:
         return _BottomAction(
@@ -185,7 +189,9 @@ class _DriverCurrentTripFlowScreenState
   String _elapsedTime() {
     final startedAt = _driver.tripStartedAt;
     if (startedAt == null) return '00:00';
-    final elapsed = DateTime.now().difference(startedAt);
+    final elapsed = (_driver.tripEndedAt ?? DateTime.now()).difference(
+      startedAt,
+    );
     final hours = elapsed.inHours.toString().padLeft(2, '0');
     final minutes = elapsed.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = elapsed.inSeconds.remainder(60).toString().padLeft(2, '0');
@@ -199,12 +205,14 @@ class _NavigationView extends StatelessWidget {
     required this.destination,
     required this.instruction,
     required this.remainingDistance,
+    required this.toPickup,
   });
 
   final Trip trip;
   final String destination;
   final String instruction;
   final String remainingDistance;
+  final bool toPickup;
 
   @override
   Widget build(BuildContext context) {
@@ -279,9 +287,52 @@ class _NavigationView extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _openMaps(context, trip, toPickup: toPickup),
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Open in Maps'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white54),
+            ),
+          ),
+        ),
         const SizedBox(height: 16),
         _IncidentCard(trip: trip),
       ],
+    );
+  }
+}
+
+Future<void> _openMaps(
+  BuildContext context,
+  Trip trip, {
+  required bool toPickup,
+}) async {
+  final lat = trip.latitude;
+  final lng = trip.longitude;
+  final target = (toPickup && lat != null && lng != null)
+      ? '$lat,$lng'
+      : Uri.encodeComponent(toPickup ? trip.pickup : trip.destination);
+  final uri = Uri.parse(
+    'https://www.google.com/maps/dir/?api=1&destination=$target&travelmode=driving',
+  );
+  final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!opened && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not open a maps app.')),
+    );
+  }
+}
+
+Future<void> _callPatient(BuildContext context, Trip trip) async {
+  final opened = await launchUrl(Uri(scheme: 'tel', path: trip.patientPhone));
+  if (!opened && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not open the phone app.')),
     );
   }
 }
@@ -314,6 +365,21 @@ class _ArrivalView extends StatelessWidget {
         const SizedBox(height: 26),
         _IncidentCard(trip: trip),
         const SizedBox(height: 16),
+        if (trip.patientPhone.isNotEmpty) ...[
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _callPatient(context, trip),
+              icon: const Icon(Icons.call),
+              label: Text('Call ${trip.patientName}'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white54),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         const _InfoBanner(
           icon: Icons.info_outline,
           text:
@@ -458,7 +524,7 @@ class _CompletedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fare = trip.distanceKm * 50;
+    final fare = trip.fare ?? 0.0;
     return Column(
       children: [
         const SizedBox(height: 34),
@@ -494,7 +560,7 @@ class _CompletedView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               _SummaryRow(label: 'Duration', value: elapsed),
-              _SummaryRow(label: 'Distance', value: '${trip.distanceKm} km'),
+              _SummaryRow(label: 'Distance', value: trip.distanceLabel),
               _SummaryRow(label: 'Emergency Type', value: trip.incidentType),
               _SummaryRow(
                 label: 'Patient Count',

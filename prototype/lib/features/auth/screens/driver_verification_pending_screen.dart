@@ -1,8 +1,75 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:medirapid/core/routes/app_routes.dart';
+import 'package:medirapid/features/auth/providers/driver_verification_provider.dart';
+import 'package:medirapid/features/driver/providers/driver_provider.dart';
 
-class DriverVerificationPendingScreen extends StatelessWidget {
+class DriverVerificationPendingScreen extends StatefulWidget {
   const DriverVerificationPendingScreen({super.key});
+
+  @override
+  State<DriverVerificationPendingScreen> createState() =>
+      _DriverVerificationPendingScreenState();
+}
+
+class _DriverVerificationPendingScreenState
+    extends State<DriverVerificationPendingScreen> {
+  final _verification = DriverVerificationProvider.instance;
+  Timer? _timer;
+  bool _checking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // The admin approves on the server; check every 10 s while this is open.
+    _timer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _check(silent: true),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _check({bool silent = false}) async {
+    if (_checking) return;
+    setState(() => _checking = true);
+    final ok = await _verification.refresh();
+    if (!mounted) return;
+    setState(() => _checking = false);
+
+    if (!ok) {
+      if (!silent) _snack(_verification.error ?? 'Could not check your status.');
+      return;
+    }
+    if (_verification.isApproved) {
+      await DriverProvider.instance.restore(isAvailable: false);
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.driverHome,
+        (route) => false,
+      );
+    } else if (_verification.isRejected || !_verification.isPending) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.driverVerification,
+        (route) => false,
+      );
+    } else if (!silent) {
+      _snack('Still under review. We will let you in as soon as it is approved.');
+    }
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -146,6 +213,23 @@ class DriverVerificationPendingScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 22),
+                          SizedBox(
+                            width: double.maxFinite,
+                            child: OutlinedButton.icon(
+                              icon: _checking
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.refresh),
+                              label: const Text('Check status'),
+                              onPressed: _checking ? null : _check,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
                           SizedBox(
                             width: double.maxFinite,
                             child: FilledButton.icon(

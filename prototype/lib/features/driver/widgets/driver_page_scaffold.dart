@@ -4,6 +4,18 @@ import 'package:medirapid/features/driver/providers/driver_provider.dart';
 
 import 'driver_request_banner.dart';
 
+/// Shows the provider's pending error (if any) as a snackbar, once.
+void surfaceDriverError(BuildContext context, DriverProvider driver) {
+  final message = driver.takeError();
+  if (message == null) return;
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  });
+}
+
 class DriverPageScaffold extends StatelessWidget {
   const DriverPageScaffold({
     required this.title,
@@ -34,6 +46,7 @@ class DriverPageScaffold extends StatelessWidget {
     return AnimatedBuilder(
       animation: driver,
       builder: (context, child) {
+        surfaceDriverError(context, driver);
         final canReceiveRequests = driver.isOnline && !driver.isOnTrip;
         final requestCount = canReceiveRequests
             ? driver.incomingRequests.length

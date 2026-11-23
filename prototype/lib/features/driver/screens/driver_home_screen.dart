@@ -1,12 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:medirapid/core/routes/app_routes.dart';
+import 'package:medirapid/core/services/session_service.dart';
 import 'package:medirapid/features/driver/models/trip_model.dart';
 import 'package:medirapid/features/driver/providers/driver_provider.dart';
 import 'package:medirapid/features/driver/widgets/driver_page_scaffold.dart';
 import 'package:medirapid/features/driver/models/trip_flow_model.dart';
 
-class DriverHomeScreen extends StatelessWidget {
+class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
+
+  @override
+  State<DriverHomeScreen> createState() => _DriverHomeScreenState();
+}
+
+class _DriverHomeScreenState extends State<DriverHomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Earnings come from the server's completed trips.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) DriverProvider.instance.refreshTrips();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +44,7 @@ class DriverHomeScreen extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             children: [
               Text(
-                'Good ${_greeting()}, Driver',
+                'Good ${_greeting()}, ${_firstName()}',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -91,6 +106,12 @@ class DriverHomeScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  String _firstName() {
+    final name = SessionService.instance.user?.name.trim() ?? '';
+    if (name.isEmpty) return 'Driver';
+    return name.split(RegExp(r'\s+')).first;
   }
 
   String _greeting() {
@@ -160,7 +181,9 @@ class _AvailabilityCard extends StatelessWidget {
             if (!isOnTrip)
               Switch(
                 value: driver.isOnline,
-                onChanged: (_) => driver.toggleOnlineStatus(),
+                onChanged: driver.isBusy
+                    ? null
+                    : (_) => driver.toggleOnlineStatus(),
                 activeThumbColor: Colors.green,
               )
             else

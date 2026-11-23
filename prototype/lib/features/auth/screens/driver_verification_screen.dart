@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:medirapid/core/routes/app_routes.dart';
 import 'package:medirapid/features/auth/models/driver_verification_document.dart';
 import 'package:medirapid/features/auth/providers/driver_verification_provider.dart';
+import 'package:medirapid/features/auth/repositories/driver_verification_repository.dart';
 import 'package:medirapid/features/auth/widgets/driver_document_upload_tile.dart';
 
 class DriverVerificationScreen extends StatefulWidget {
@@ -82,10 +83,22 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
       return;
     }
 
-    await DriverVerificationProvider.instance.submitForReview();
-
-    if (!mounted) return;
     setState(() => _isSubmitting = true);
+    final verification = DriverVerificationProvider.instance;
+    final ok = await verification.submit(
+      vehicleNumber: _vehicleRegistrationController.text.trim(),
+      licenseNumber: _licenseNumberController.text.trim(),
+      documents: [
+        for (final entry in _documents.entries)
+          VerificationUpload(type: entry.key.apiType, fileName: entry.value.name),
+      ],
+    );
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _isSubmitting = false);
+      _showMessage(verification.error ?? 'Could not submit your documents.');
+      return;
+    }
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -198,6 +211,23 @@ class _DriverVerificationScreenState extends State<DriverVerificationScreen> {
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
+                if (DriverVerificationProvider.instance.isRejected) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF1F0),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFECACA)),
+                    ),
+                    child: Text(
+                      'Your last submission was rejected'
+                      '${DriverVerificationProvider.instance.reason == null ? '.' : ': ${DriverVerificationProvider.instance.reason}'}\n'
+                      'Please correct it and submit again.',
+                      style: const TextStyle(color: Color(0xFFB42318)),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: _licenseNumberController,

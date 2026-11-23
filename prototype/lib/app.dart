@@ -6,6 +6,10 @@ import 'package:medirapid/features/auth/providers/driver_verification_provider.d
 const bool bypassDriverVerification = false;
 
 class MediRapid extends StatelessWidget {
+  /// Lets non-widget code (e.g. session expiry) navigate.
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   const MediRapid({
     required this.routes,
     required this.initialRoute,
@@ -19,6 +23,7 @@ class MediRapid extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MediRapid',
+      navigatorKey: navigatorKey,
       theme: AppTheme.theme,
       debugShowCheckedModeBanner: false,
       initialRoute: initialRoute,

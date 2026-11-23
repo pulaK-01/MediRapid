@@ -1,15 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:medirapid/core/routes/app_routes.dart';
+import 'package:medirapid/core/services/session_service.dart';
 import 'package:medirapid/features/auth/models/driver_verification_status.dart';
 import 'package:medirapid/features/auth/providers/driver_verification_provider.dart';
 import 'package:medirapid/features/driver/providers/driver_provider.dart';
 import 'package:medirapid/features/driver/widgets/driver_page_scaffold.dart';
 
-class DriverProfileScreen extends StatelessWidget {
+class DriverProfileScreen extends StatefulWidget {
   const DriverProfileScreen({super.key});
 
   @override
+  State<DriverProfileScreen> createState() => _DriverProfileScreenState();
+}
+
+class _DriverProfileScreenState extends State<DriverProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      DriverVerificationProvider.instance.refresh();
+      DriverProvider.instance.refreshTrips();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final user = SessionService.instance.user;
     final verification = DriverVerificationProvider.instance;
     final driver = DriverProvider.instance;
 
@@ -33,12 +50,21 @@ class DriverProfileScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
               children: [
                 _ProfileHeader(
+                  name: (user?.name.isNotEmpty ?? false)
+                      ? user!.name
+                      : 'Driver account',
+                  subtitle: (user?.phone.isNotEmpty ?? false)
+                      ? '+${user!.phone}'
+                      : 'Emergency response partner',
                   statusLabel: statusStyle.shortLabel,
                   statusColor: statusStyle.foreground,
                 ),
                 const SizedBox(height: 20),
                 _VerificationCard(
                   style: statusStyle,
+                  note: status == DriverVerificationStatus.rejected
+                      ? verification.reason
+                      : null,
                   onPressed: () {
                     final route = status == DriverVerificationStatus.pending
                         ? AppRoutes.driverVerificationPending
@@ -70,8 +96,8 @@ class DriverProfileScreen extends StatelessWidget {
                       Expanded(
                         child: _ActivityCard(
                           icon: Icons.account_balance_wallet_outlined,
-                          label: 'Session earnings',
-                          value: '₹${driver.todayEarnings.toStringAsFixed(0)}',
+                          label: 'Total earnings',
+                          value: '₹${driver.totalEarnings.toStringAsFixed(0)}',
                           color: const Color(0xFF0F9D72),
                         ),
                       ),
@@ -115,8 +141,15 @@ class DriverProfileScreen extends StatelessWidget {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.statusLabel, required this.statusColor});
+  const _ProfileHeader({
+    required this.name,
+    required this.subtitle,
+    required this.statusLabel,
+    required this.statusColor,
+  });
 
+  final String name;
+  final String subtitle;
   final String statusLabel;
   final Color statusColor;
 
@@ -164,7 +197,7 @@ class _ProfileHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Driver account',
+                  name,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -172,7 +205,7 @@ class _ProfileHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Emergency response partner',
+                  subtitle,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.white.withValues(alpha: 0.82),
                   ),
@@ -206,8 +239,13 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _VerificationCard extends StatelessWidget {
-  const _VerificationCard({required this.style, required this.onPressed});
+  const _VerificationCard({
+    required this.style,
+    required this.onPressed,
+    this.note,
+  });
 
+  final String? note;
   final _VerificationStyle style;
   final VoidCallback onPressed;
 
@@ -257,6 +295,16 @@ class _VerificationCard extends StatelessWidget {
               ),
             ],
           ),
+          if (note != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Reason: $note',
+              style: TextStyle(
+                color: style.foreground,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
