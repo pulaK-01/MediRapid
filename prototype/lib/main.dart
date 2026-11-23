@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:medirapid/core/network/api_client.dart';
+import 'package:medirapid/core/services/auth_controller.dart';
+import 'package:medirapid/core/services/session_service.dart';
+import 'package:medirapid/features/auth/screens/splash_screen.dart';
+import 'package:medirapid/features/patient/screens/patient_history_screen.dart';
 import 'package:medirapid/app.dart';
 import 'package:medirapid/core/routes/app_routes.dart';
 import 'package:medirapid/core/theme/app_theme.dart';
@@ -14,15 +19,32 @@ import 'package:medirapid/features/driver/screens/driver_trip_history_screen.dar
 import 'package:medirapid/features/patient/screens/patient_home_screen.dart';
 import 'package:medirapid/features/patient/screens/patient_settings_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SessionService.instance.load();
+
+  // An expired/invalid token anywhere sends the user back to role selection.
+  ApiClient.instance.onUnauthorized = () {
+    AuthController.instance.clearLocalSession();
+    MediRapid.navigatorKey.currentState?.pushNamedAndRemoveUntil(
+      AppRoutes.roleSelection,
+      (route) => false,
+    );
+  };
+
   runApp(
     MediRapid(
-      initialRoute: AppRoutes.driverVerification,
+      initialRoute: AppRoutes.splash,
       routes: {
+        AppRoutes.splash: (_) => const SplashScreen(),
         AppRoutes.roleSelection: (_) => const RoleSelectionScreen(),
         AppRoutes.patientHome: _withTheme(
           AppTheme.patientTheme,
           (_) => const PatientHomeScreen(),
+        ),
+        AppRoutes.patientHistory: _withTheme(
+          AppTheme.patientTheme,
+          (_) => const PatientHistoryScreen(),
         ),
         AppRoutes.patientSettings: _withTheme(
           AppTheme.patientTheme,

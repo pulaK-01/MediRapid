@@ -31,8 +31,9 @@ class _DriverDispatchScreenState extends State<DriverDispatchScreen> {
     if (request != null) _driver.startRequestCountdown(request);
   }
 
-  void _acceptRequest(Trip trip) {
-    if (_driver.acceptRequest(trip)) {
+  Future<void> _acceptRequest(Trip trip) async {
+    final accepted = await _driver.acceptRequest(trip);
+    if (accepted && mounted) {
       Navigator.pushReplacementNamed(context, AppRoutes.driverCurrentTripFlow);
     }
   }
@@ -72,7 +73,7 @@ class _DriverDispatchScreenState extends State<DriverDispatchScreen> {
           if (requests.isEmpty) {
             return _DispatchEmptyState(
               expired: _driver.lastRequestExpired,
-              onSimulateRequest: _driver.simulateDemoRequest,
+              onRefresh: _driver.refreshRequests,
             );
           }
 
@@ -93,9 +94,7 @@ class _DriverDispatchScreenState extends State<DriverDispatchScreen> {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      requests.first.isDemo
-                          ? 'DEMO EMERGENCY REQUEST'
-                          : 'EMERGENCY BROADCAST',
+                      'EMERGENCY BROADCAST',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -138,7 +137,7 @@ class _DriverDispatchScreenState extends State<DriverDispatchScreen> {
               ...requests.map(
                 (trip) => _RequestCard(
                   trip: trip,
-                  onAccept: _driver.isOnTrip
+                  onAccept: (_driver.isOnTrip || _driver.isBusy)
                       ? null
                       : () => _acceptRequest(trip),
                   onDecline: () => _declineRequest(trip),
@@ -193,13 +192,18 @@ class _RequestCard extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Patient: ${trip.patientName}',
+              style: const TextStyle(color: Colors.white70),
+            ),
             const Divider(height: 24, color: Colors.white24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _RequestDetail(
                   label: 'DISTANCE',
-                  value: '${trip.distanceKm.toStringAsFixed(1)} km',
+                  value: trip.distanceLabel,
                   icon: Icons.navigation,
                 ),
                 _RequestDetail(
@@ -314,12 +318,12 @@ class _DispatchEmptyState extends StatelessWidget {
   const _DispatchEmptyState({
     this.expired = false,
     this.offline = false,
-    this.onSimulateRequest,
+    this.onRefresh,
   });
 
   final bool expired;
   final bool offline;
-  final VoidCallback? onSimulateRequest;
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -352,17 +356,17 @@ class _DispatchEmptyState extends StatelessWidget {
               offline
                   ? 'Go online from Home to receive emergency requests.'
                   : expired
-                  ? 'The request expired. Generate another sample request to continue the demo.'
-                  : 'New emergency requests will appear here.',
+                  ? 'The request expired. Refresh to check for new requests.'
+                  : 'New emergency requests will appear here automatically.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.black54),
             ),
-            if (onSimulateRequest != null) ...[
+            if (onRefresh != null) ...[
               const SizedBox(height: 20),
               FilledButton.icon(
-                onPressed: onSimulateRequest,
-                icon: const Icon(Icons.add_alert),
-                label: const Text('Simulate Demo Request'),
+                onPressed: onRefresh,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh'),
               ),
             ],
           ],

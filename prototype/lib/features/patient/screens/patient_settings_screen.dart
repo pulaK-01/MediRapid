@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:medirapid/core/services/auth_controller.dart';
 import 'package:medirapid/features/auth/screens/phone_authentication.dart';
 import 'package:medirapid/models/user_model.dart';
 import 'package:medirapid/shared/models/settings_item.dart';
@@ -26,6 +27,8 @@ class PatientSettingsScreen extends StatelessWidget {
     );
 
     if (shouldLogOut == true && context.mounted) {
+      await AuthController.instance.signOut();
+      if (!context.mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute<void>(

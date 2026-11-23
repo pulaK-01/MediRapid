@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:medirapid/core/routes/app_routes.dart';
+import 'package:medirapid/core/services/auth_controller.dart';
 import 'package:medirapid/features/auth/screens/phone_authentication.dart';
 import 'package:medirapid/models/user_model.dart';
-import 'package:medirapid/features/driver/providers/driver_provider.dart';
 import 'package:medirapid/features/driver/widgets/driver_page_scaffold.dart';
 import 'package:medirapid/shared/models/settings_item.dart';
 
@@ -29,7 +29,8 @@ class DriverSettingsScreen extends StatelessWidget {
     );
 
     if (shouldLogOut == true && context.mounted) {
-      DriverProvider.instance.resetSession();
+      await AuthController.instance.signOut();
+      if (!context.mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute<void>(

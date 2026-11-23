@@ -1,9 +1,8 @@
-import 'package:medirapid/core/routes/app_routes.dart';
+import 'package:medirapid/core/network/api_client.dart';
+import 'package:medirapid/core/services/auth_controller.dart';
 import 'package:medirapid/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:medirapid/features/auth/models/driver_verification_status.dart';
-import 'package:medirapid/features/auth/providers/driver_verification_provider.dart';
 import 'package:medirapid/models/user_model.dart';
 
 enum AuthenticationMode { signUp, login }
@@ -13,10 +12,14 @@ class PhoneAuthenticationScreen extends StatefulWidget {
     super.key,
     required this.role,
     this.initialMode = AuthenticationMode.signUp,
+    this.auth,
   });
 
   final UserRole role;
   final AuthenticationMode initialMode;
+
+  /// Defaults to the real [AuthController]; tests pass a fake.
+  final AuthFlow? auth;
 
   @override
   State<PhoneAuthenticationScreen> createState() =>
@@ -31,7 +34,10 @@ class _PhoneAuthenticationScreenState extends State<PhoneAuthenticationScreen> {
   final _otpController = TextEditingController();
 
   bool _showOtpStep = false;
+  bool _submitting = false;
   late AuthenticationMode _mode = widget.initialMode;
+
+  AuthFlow get _auth => widget.auth ?? AuthController.instance;
 
   bool get _isPatient => widget.role == UserRole.patient;
 
@@ -69,19 +75,31 @@ class _PhoneAuthenticationScreenState extends State<PhoneAuthenticationScreen> {
     });
   }
 
-  void _completeAuthentication() {
-    if (!_otpFormKey.currentState!.validate()) return;
+  Future<void> _completeAuthentication() async {
+    if (_submitting || !_otpFormKey.currentState!.validate()) return;
 
-    final route = _isPatient
-        ? AppRoutes.patientHome
-        : _mode == AuthenticationMode.signUp
-        ? AppRoutes.driverVerification
-        : DriverVerificationProvider.instance.status ==
-              DriverVerificationStatus.approved
-        ? AppRoutes.driverHome
-        : AppRoutes.driverVerificationPending;
+    // The backend identifies accounts by digits only ("+91 98765 43210" and
+    // "919876543210" must be the same account).
+    final phone = _phoneController.text.replaceAll(RegExp(r'\D'), '');
+    final signUp = _mode == AuthenticationMode.signUp;
 
-    Navigator.pushNamedAndRemoveUntil(context, route, (route) => false);
+    setState(() => _submitting = true);
+    try {
+      final route = await _auth.authenticate(
+        role: widget.role,
+        phone: phone,
+        name: signUp ? _nameController.text.trim() : null,
+        signUp: signUp,
+      );
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, route, (route) => false);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   @override
@@ -262,23 +280,34 @@ class _PhoneAuthenticationScreenState extends State<PhoneAuthenticationScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.amber.shade300),
                       ),
+                      child: const Text(
+                        'Demo mode: no SMS is sent. Enter any 4 digits to continue.',
+                      ),
                     ),
 
                     const SizedBox(height: 24),
 
                     FilledButton.icon(
                       iconAlignment: IconAlignment.end,
-                      onPressed: _completeAuthentication,
-                      icon: const Icon(Icons.arrow_forward_rounded),
+                      onPressed: _submitting ? null : _completeAuthentication,
+                      icon: _submitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.arrow_forward_rounded),
                       label: Text(
-                        'Log in',
+                        _mode == AuthenticationMode.signUp
+                            ? 'Create account'
+                            : 'Log in',
                         style: const TextStyle(fontSize: 21),
                       ),
                     ),
                     Align(
                       alignment: Alignment.center,
                       child: TextButton(
-                        onPressed: _changePhoneNumber,
+                        onPressed: _submitting ? null : _changePhoneNumber,
                         child: const Text('Change phone number'),
                       ),
                     ),

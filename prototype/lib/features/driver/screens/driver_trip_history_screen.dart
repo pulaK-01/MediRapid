@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/trip_model.dart';
 import '../providers/driver_provider.dart';
-import '../repositories/trip_repository.dart';
 import '../widgets/driver_page_scaffold.dart';
 
 class DriverTripHistoryPage extends StatefulWidget {
@@ -13,18 +12,12 @@ class DriverTripHistoryPage extends StatefulWidget {
 
 class _TripHistoryPageState extends State<DriverTripHistoryPage> {
   final _driver = DriverProvider.instance;
-  List<Trip> trips = [];
 
   @override
   void initState() {
     super.initState();
-    _loadTrips();
-  }
-
-  Future<void> _loadTrips() async {
-    final loadedTrips = await getTrips();
-    setState(() {
-      trips = loadedTrips;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _driver.refreshTrips();
     });
   }
 
@@ -73,7 +66,7 @@ class _TripHistoryPageState extends State<DriverTripHistoryPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Distance:${trip.distanceKm.toStringAsFixed(1)} km,',
+              'Distance: ${trip.distanceLabel}',
               style: TextStyle(fontSize: 16, color: Colors.deepOrange[900]),
             ),
             const SizedBox(height: 5),
@@ -127,8 +120,44 @@ class _TripHistoryPageState extends State<DriverTripHistoryPage> {
       body: AnimatedBuilder(
         animation: _driver,
         builder: (context, child) {
-          final allTrips = [..._driver.completedTrips, ...trips];
-          return ListView.separated(
+          final allTrips = _driver.trips;
+          if (allTrips.isEmpty) {
+            return RefreshIndicator(
+              onRefresh: _driver.refreshTrips,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  const SizedBox(height: 120),
+                  Icon(
+                    _driver.tripsError != null
+                        ? Icons.cloud_off
+                        : Icons.history,
+                    size: 56,
+                    color: Colors.blueGrey,
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      _driver.isLoadingTrips
+                          ? 'Loading trips…'
+                          : _driver.tripsError ?? 'No trips yet',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Center(child: Text('Pull down to refresh')),
+                ],
+              ),
+            );
+          }
+          return RefreshIndicator(
+            onRefresh: _driver.refreshTrips,
+            child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(12),
         itemCount: allTrips.length,
         separatorBuilder: (context, index) {
@@ -232,6 +261,7 @@ class _TripHistoryPageState extends State<DriverTripHistoryPage> {
             ),
           );
         },
+          ),
           );
         },
       ),
